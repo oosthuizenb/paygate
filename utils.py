@@ -1,26 +1,32 @@
-from datetime import date
 from hashlib import md5
-
-from django.utils.translation import ugettext_lazy as _
-
-
-
-def get_month_choices():
-    month_choices = [(str(x), '%02d' % (x,)) for x in range(1, 13)]
-    return [('', _('Month'))] + month_choices
-
-
-def get_year_choices():
-    year_choices = [(str(x), str(x)) for x in range(
-        date.today().year, date.today().year + 15)]
-    return [('', _('Year'))] + year_choices
+import requests
 
 def calculate_md5(data):
     checksum = ''
-    key = 'secret' # This is last value added to encryption key before md5 is called.
-    for key,value in data:
-        checksum = f'{checksum}{value}'
+    key = 'secret' # Make sure
+    for k,v in data.items():
+        # print(f'md5: {v}')
+        checksum = f'{checksum}{v}'
     checksum = f'{checksum}{key}' # add key to checksum value
     md5_hash = md5(checksum.encode('utf-8')).hexdigest()
-    print(md5_hash) # debugging
     return md5_hash
+
+def post_payment(data):
+    url = data.pop('url')
+    response = requests.post(url, data=data)
+    dict_ = {}
+    new = response.text.split('&')
+    for item in new:
+        list_ = item.split('=')
+        key = list_[0]
+        value = list_[1]
+        dict_[key] = value
+    
+    is_equal, dict_['CHECKSUM'] = validate_checksum(dict_)
+    return is_equal, dict_
+
+
+def validate_checksum(data):
+    hash_ = data.pop('CHECKSUM')
+    new_hash = calculate_md5(data)
+    return hash_ == new_hash, new_hash

@@ -1,8 +1,0 @@
-{% extends "" %} <!-- Not sure-->
-
-<form action="https://secure.paygate.co.za/payweb3/process.trans" method='post'>
-    {% for field in form %}
-    {{ field }}
-    {% endfor %}
-    <button type='submit'>Submit data to paygate</button>
-</form>

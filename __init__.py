@@ -1,63 +1,63 @@
-from decimal import Decimal
 from django.core.exceptions import ImproperlyConfigured
 from django.http import HttpResponse, HttpResponseForbidden
 from django.utils.translation import get_language
 
 from .forms import ProcessPaymentForm
 from ..core import BasicProvider
-from ..utils import calculate_md5
+from .utils import calculate_md5, post_payment, validate_checksum
 
-CENTS = Decimal('0.01')
 
 class PaygateProvider(BasicProvider):
 
-    def __init__(self, *args, **kwargs):
-        self.paygate_id = kwargs.pop('id') # Provided by paygate
-        self.project_id = kwargs.pop('project_id')
-        self.endpoint = kwargs.pop(
-             'endpoint', 'https://secure.paygate.co.za/payweb3/initiate.trans') # Get test endpoint for paygate
-        super(PaygateProvider, self).__init__(*args, **kwargs)
+    _method = 'post'
+
+    def __init__(self, paygate_id=10011072130, **kwargs):
+        self.paygate_id =  paygate_id # Test ID
+        self.endpoint = 'https://secure.paygate.co.za/payweb3/process.trans'
+        super(PaygateProvider, self).__init__(**kwargs)
+
+    def get_action(self, payment):
+        return self.endpoint
 
     def get_hidden_fields(self, payment):
         # Step 1 send transaction data to Paygate
         data = {
             'paygate_id'        : self.paygate_id,
-            'reference'         : payment.transaction_id,
-            'amount'            : Decimal(str(payment.total)).quantize(CENTS) * 100,
-            'currency'          : payment.currency,
+            'reference'         : payment.id,
+            'amount'            : trunc(payment.total * 100),
+            'currency'          : 'ZAR',
             'return_url'        : self.get_return_url(payment),
             'transaction_date'  : payment.created,
             'locale'            : get_language(),
-            'control'           : str(payment.id),
-            'description'       : payment.description,
-            'country'           : '',
+            'country'           : 'ZAF',
             'email'             : payment.billing_email,
             'notify_url'        : payment.get_process_url(),
-            }
+        }
         data['checksum'] = calculate_md5(data)
-
-        return data
-
-    def process_data(self, payment, request):
-        if request.POST['AUTH_CODE']: # Step 4
-            hash_dict = request.POST
-            hash_dict.pop('checksum')
-            md5_hash = calculate_md5(hash_dict)
-            if md5_hash != request.POST['CHECKSUM']
-                return HttpResponseForbidden('FAILED')
-            # change transaction status etc.    
-            return HttpResponse('OK')
-
-        # Step 2 validate the response from Paygate
-        form = ProcessPaymentForm(payment=payment,
-                                  paygate_id=self.paygate_id,
-                                  data=request.POST or None
-                                  )
-        if not form.is_valid():
+        data['url'] = 'https://secure.paygate.co.za/payweb3/initiate.trans'
+        # Post data and validate response data
+        hash_valid, response_data = post_payment(data)
+        if not hash_valid 
             return HttpResponseForbidden('FAILED')
+        
+        return response_data
 
-        # Step 3 redirect user to Paygate
+def process_data(self, payment, request):
+    if request.method == "POST":
+        token = kwargs.get('token')
+        payment = Payment.objects.get(token=token)
+        for k,v in request.POST.items():
+            print(k,v)
+        if request.POST.get('AUTH_CODE'):
+            print("Notified")
+            payment.status = "NOTIFIED"
+            return HttpResponse("OK")
 
-        form.save()
-        return render(request, 'form.html', {
-        'form': form}) # FIX
+    # if request.POST['AUTH_CODE']: # Step 4
+    #     hash_dict = request.POST
+    #     hash_dict.pop('checksum')
+    #     md5_hash = calculate_md5(hash_dict)
+    #     if md5_hash != request.POST['CHECKSUM']
+    #         return HttpResponseForbidden('FAILED')
+    #     # change transaction status etc.
+    #     return HttpResponse('OK')
