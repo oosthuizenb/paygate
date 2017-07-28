@@ -65,3 +65,5 @@ class PaygateProvider(BasicProvider):
                 self.notify_response(request)
                 return redirect(payment.get_failure_url())
         return redirect(success_url)
+
+

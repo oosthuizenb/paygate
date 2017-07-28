@@ -28,7 +28,6 @@ def post_payment(data):
 
 
 def validate_checksum(data):
-    print(data)
     hash_ = data.pop('CHECKSUM')
     new_hash = calculate_md5(data)
     return hash_ == new_hash, new_hash
